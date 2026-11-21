@@ -1,4 +1,4 @@
- # Decentralized Smart Energy Grid with Peer-to-Peer Energy Trading
+# Decentralized Smart Energy Grid with Peer-to-Peer Energy Trading
 
 A hardware-in-the-loop (HIL) smart-grid framework for autonomous
 peer-to-peer (P2P) electricity trading between residential prosumers and
@@ -258,7 +258,11 @@ ledger for residential microgrids.
 
 -   **Rohan Satish Dodwad**
 -   **MD Suraj**
-
+-   **Ananya Karthik**
+-   **Harshit Bajpai**
+-   **Parth Sarathi Panigrahy**
+-   **Swarna Mayee Patra**
+-   **Hemalatha Jeekanahalli Nanjappa**
 
 ## Acknowledgement
 
