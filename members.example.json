@@ -1,0 +1,6 @@
+{
+  "house1": {"email": "sb-prosumer1@personal.example.com", "role": "prosumer"},
+  "house2": {"email": "sb-prosumer2@personal.example.com", "role": "prosumer"},
+  "house3": {"email": "sb-consumer1@personal.example.com", "role": "consumer"},
+  "house4": {"email": "sb-consumer2@personal.example.com", "role": "consumer"}
+}
