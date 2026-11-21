@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SolarPool treasurer console</title>
+<style>
+:root{--bg:#f2f5f1;--ink:#17251f;--mute:#5d6e65;--line:#cfd8d0;--teal:#1d6b5f;--amber:#b87a00;--red:#a63a2b;--card:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#121a17;--ink:#e6efe9;--mute:#93a69b;--line:#2b3a33;--teal:#4fb5a3;--amber:#e0a93a;--red:#e07a68;--card:#18231f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,sans-serif;padding:24px;max-width:960px;margin-inline:auto}
+h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 8px}p{margin:0;color:var(--mute)}
+.books{margin:18px 0;padding:16px 18px;border-left:6px solid var(--teal);background:var(--card);font-variant-numeric:tabular-nums}
+.books.bad{border-color:var(--red)}.books b{font-size:17px}
+table{width:100%;border-collapse:collapse;background:var(--card);font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}th{color:var(--mute);font-weight:500}
+td.n,th.n{text-align:right}
+.pend{border:2px solid var(--amber);background:var(--card);padding:14px;margin:8px 0}
+button{font:inherit;padding:7px 14px;border:1px solid var(--ink);background:var(--ink);color:var(--bg);cursor:pointer}
+button.alt{background:none;color:var(--ink)}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}input,select{font:inherit;padding:6px 8px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.tag{color:var(--amber)}.f{color:var(--red)}
+</style></head><body>
+<h1>SolarPool treasurer console</h1><p id="sub">Loading…</p>
+<div id="books" class="books"></div>
+<div id="approvals"></div>
+<h2>Members</h2>
+<table><thead><tr><th>Member</th><th>Role</th><th class="n">Wallet</th><th class="n">Owed to member</th></tr></thead><tbody id="members"></tbody></table>
+<h2>Add money</h2>
+<form id="topup"><select name="member_id" id="who"></select>
+<select name="purpose"><option value="wallet_topup">Top up energy wallet</option><option value="project_fund">Fund community solar</option></select>
+<input name="amount" type="number" min="1" max="1000" step="0.01" value="10" aria-label="Amount" required>
+<button>Pay with PayPal</button></form><p id="msg"></p>
+<h2>Payout batches</h2><table><thead><tr><th>Batch</th><th>Status</th><th class="n">Total</th><th>Recipients</th></tr></thead><tbody id="batches"></tbody></table>
+<p style="margin-top:10px"><button class="alt" id="run">Run settlement now</button></p>
+<script>
+const $=id=>document.getElementById(id);let cur="";const m=x=>(x/100).toFixed(2);
+function el(t,txt,cls){const e=document.createElement(t);if(txt!==undefined)e.textContent=txt;if(cls)e.className=cls;return e}
+async function load(){const s=await (await fetch("/api/state")).json();cur=s.currency;
+$("sub").textContent=`Region ${s.region} · ${s.currency} · ${s.trades} trades settled · ${cur} ${m(s.funded)} funded for community solar`;
+const r=s.recon,b=$("books");b.className="books"+(r.ok?"":" bad");b.replaceChildren();
+b.append(el("b",r.ok?"Books balance":"Books do not balance"),el("br"),
+document.createTextNode(`Captured ${m(r.captured)} = in wallets and owed ${m(r.held)} + on its way ${m(r.in_flight)} + paid ${m(r.paid)}`));
+const mem=$("members");mem.replaceChildren();if(!$("who").options.length)s.members.forEach(x=>$("who").add(new Option(x.id,x.id)));
+s.members.forEach(x=>{const tr=el("tr");tr.append(el("td",x.id),el("td",x.role),el("td",m(x.balance),"n"),el("td",m(x.accrued),"n"));mem.append(tr)});
+const ap=$("approvals");ap.replaceChildren();
+s.batches.filter(x=>x.status=="pending_approval").forEach(x=>{const d=el("div",undefined,"pend");
+d.append(el("b",`Needs your approval: ${cur} ${m(x.total)}`),el("p",x.explanation),
+el("p",JSON.parse(x.risk||"[]").join(", ")||"No risk flags","f"));
+x.items.forEach(i=>d.append(el("p",`${i.member_id}: ${m(i.amount)}`)));
+const a=el("button","Approve payout"),j=el("button","Reject","alt");a.onclick=()=>act(x.id,"approve");j.onclick=()=>act(x.id,"reject");
+d.append(a,document.createTextNode(" "),j);ap.append(d)});
+const bt=$("batches");bt.replaceChildren();s.batches.forEach(x=>{const tr=el("tr");
+tr.append(el("td",x.id),el("td",x.status,x.status=="submit_failed"?"f":""),el("td",m(x.total),"n"),el("td",x.items.map(i=>`${i.member_id} ${m(i.amount)} ${i.status}`).join(", ")));bt.append(tr)})}
+async function act(id,a){await fetch(`/api/batches/${id}/${a}`,{method:"POST"});load()}
+$("run").onclick=async()=>{$("run").disabled=true;await fetch("/api/settle",{method:"POST"});$("run").disabled=false;load()};
+$("topup").onsubmit=async e=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
+const r=await fetch("/api/topup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(f)});
+const j=await r.json();if(j.approve_url)location=j.approve_url;else $("msg").textContent=j.error||"Could not start PayPal checkout."};
+const q=new URLSearchParams(location.search).get("topup");if(q)$("msg").textContent=q=="ok"?"Payment received.":"Payment was not completed.";
+load();setInterval(load,4000);
+</script></body></html>

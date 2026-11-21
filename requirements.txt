@@ -1,0 +1,5 @@
+flask>=3.0
+requests>=2.31
+numpy
+paho-mqtt
+anthropic>=0.40   # optional: AI-written batch notes
